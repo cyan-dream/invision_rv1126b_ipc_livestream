@@ -434,7 +434,41 @@ static int get_nalu_type(uint8_t *buff, int buffer_size)
 
 }
 
+void *video_to_mp4_thread(void *arg)
+{   
+	int len = strlen((char *)arg);
+    if (len < 5 || len > 63) {
+        printf("video_file name error\n");
+        return NULL;
+    }
+    char video_file[64] = {0};
+    strncpy(video_file, (char *)arg, len);
+	char mp4_file[64] = {0};
+	strncpy(mp4_file, video_file, len);
+	mp4_file[len-1] = 0;
+	mp4_file[len-2] = '4';
+	mp4_file[len-3] = 'p';
+	mp4_file[len-4] = 'm';
+    extern int is_h265;
+    if (is_h265) {
+        extern int h265_to_mp4(char *h265file, char *mp4file);
+	    h265_to_mp4(video_file, mp4_file);
+    } else {
+        extern int h264_to_mp4(char *h264file, char *mp4file);
+	    h264_to_mp4(video_file, mp4_file);
+    }
 
+	if (0 > unlink(video_file)) {
+		printf("unlink %s error\n", video_file);
+	}
+	// if (((ipc_config.ftp_upload>>1)&0x01) && (ipc_config.ftp_url[0]!=0) && (ipc_config.ftp_username[0]!=0) && (ipc_config.ftp_password[0]!=0)) {
+	// 	char cmd[256] = {0};
+	// 	memset(cmd, 0, sizeof(cmd));
+	// 	sprintf(cmd, "curl -T %s %s --user %s:%s", mp4_file, ipc_config.ftp_url, ipc_config.ftp_username, ipc_config.ftp_password);
+	// 	system(cmd);
+	// }
+	return NULL;
+}
 void* venc_get_stream(void *pArgs) {
     TEST_VENC_CTX_S *pstCtx     = (TEST_VENC_CTX_S *)(pArgs);
     void            *pData      = RK_NULL;
@@ -462,6 +496,7 @@ void* venc_get_stream(void *pArgs) {
     extern void *contexts[];
     extern int is_record;
     int ret;
+    char filename[128];
     while (!pstCtx->threadExit) {
         s32Ret = RK_MPI_VENC_GetStream(u32Ch, &stFrame, 60);
         if (s32Ret >= 0) {
@@ -479,7 +514,6 @@ void* venc_get_stream(void *pArgs) {
                 int type = get_nalu_type(pData, stFrame.pstPack->u32Len);
                 extern int is_h265;
                 if ((type == 32 && is_h265) || (type == 7 && !is_h265)) {
-                    char filename[128];
                     set_pic_vid_filename(filename, 0);
                     fp = fopen(filename, "wb");
                     if (fp) {
@@ -492,11 +526,13 @@ void* venc_get_stream(void *pArgs) {
                 } 
             } else if (is_record == 2) {
                 fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
-            } else if (is_record == 0 && fp) {
+            } else if ((is_record == 0) && fp) {
                 fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
-                fflush(fp);
+                //fflush(fp);
                 fclose(fp);
                 fp = RK_NULL;
+			    pthread_t id;
+			    pthread_create(&id, NULL, video_to_mp4_thread, (void*)filename);
             }
 
 
