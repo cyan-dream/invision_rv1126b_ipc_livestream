@@ -4,9 +4,9 @@
 void *doClientThd(void *arg)
 {
 #if defined(__linux__) || defined(__linux)
-    signal(SIGINT, sig_handler);
-    signal(SIGQUIT, sig_handler);
-    signal(SIGKILL, sig_handler);
+    // signal(SIGINT, sig_handler);
+    // signal(SIGQUIT, sig_handler);
+    // signal(SIGKILL, sig_handler);
 #endif
     struct thd_arg_st *arg_thd = (struct thd_arg_st *)arg;
     socket_t client_sock_fd = arg_thd->client_sock_fd;
