@@ -235,6 +235,12 @@ static void *venc_jpeg_get_packet(void *arg) {
                     fclose(fp);
                     is_snap = 0;
                     printf("snap ok!\n");
+                    if (((ipc_config.ftp_upload)&0x01) && (ipc_config.ftp_url[0]!=0) && (ipc_config.ftp_username[0]!=0) && (ipc_config.ftp_password[0]!=0)) {
+                        char cmd[256] = {0};
+                        memset(cmd, 0, sizeof(cmd));
+                        sprintf(cmd, "sshpass -p %s scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s %s &", ipc_config.ftp_password, filename, ipc_config.ftp_url);
+                        system(cmd);
+	                }
                 }
             //}
             RK_U64 nowUs = venc_TEST_COMM_GetNowUs();
@@ -461,12 +467,12 @@ void *video_to_mp4_thread(void *arg)
 	if (0 > unlink(video_file)) {
 		printf("unlink %s error\n", video_file);
 	}
-	// if (((ipc_config.ftp_upload>>1)&0x01) && (ipc_config.ftp_url[0]!=0) && (ipc_config.ftp_username[0]!=0) && (ipc_config.ftp_password[0]!=0)) {
-	// 	char cmd[256] = {0};
-	// 	memset(cmd, 0, sizeof(cmd));
-	// 	sprintf(cmd, "curl -T %s %s --user %s:%s", mp4_file, ipc_config.ftp_url, ipc_config.ftp_username, ipc_config.ftp_password);
-	// 	system(cmd);
-	// }
+	if (((ipc_config.ftp_upload>>1)&0x01) && (ipc_config.ftp_url[0]!=0) && (ipc_config.ftp_username[0]!=0) && (ipc_config.ftp_password[0]!=0)) {
+		char cmd[256] = {0};
+		memset(cmd, 0, sizeof(cmd));
+		sprintf(cmd, "sshpass -p %s scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s %s &", ipc_config.ftp_password, mp4_file, ipc_config.ftp_url);
+		system(cmd);
+	}
 	return NULL;
 }
 void* venc_get_stream(void *pArgs) {
