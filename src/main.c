@@ -23,11 +23,11 @@
 #define   HEIGHT  576                       // 图片的高度
 #define   FMT     V4L2_PIX_FMT_UYVY         // 图片格式
 #define   COUNT   3                         // 缓冲区个数
-#define FONT_FILE_PATH "/opt/MSYH.TTC"
+#define FONT_FILE_PATH "/oem/font/MSYH.TTC"
 
 extern struct ipc_config ipc_config;
 int running = 1;
-int interlaced = 1;
+int interlaced = 0;
 int is_h265 = 1;
 sem_t empty;
 sem_t full;
@@ -36,9 +36,7 @@ sem_t sem_snap;
 
 extern void cleanup_stb_truetype(void);
 extern int init_stb_truetype(const char *font_path, int font_size);
-extern int overlay_text_on_yuyv(uint8_t *yuyv_data, int width, int height, 
-                         const char *text, int x, int y,
-                         uint8_t *yuv_color, int interlace);
+
                          
 //extern sqlite3 *db;
 // 信号处理函数，用于捕获Ctrl+C退出信号
@@ -121,79 +119,7 @@ int extract_nv12_from_yuyv(unsigned char* psrc, int interlaced, unsigned char* p
     return 0;
 }
 
-static void yuyv_blacken_region(uint8_t *yuyv_data, int width, int height,
-                        int ltx, int lty, int rbx, int rby,
-                        int interlace) 
-{
-    const int bytes_per_pixel = 2;  // YUYV每像素平均2字节
-    const int line_stride = width * bytes_per_pixel;  // 每行字节数
 
-    // 遍历区域内按显示顺序的所有行（y到y+region_height-1）
-    for (int disp_row = lty; disp_row < rby; disp_row++) {
-        int physical_row;  // 行在内存中的实际存储位置
-
-        // 根据扫描模式计算物理行号
-        if (interlace == 0) {
-            // 逐行模式：显示行号 = 物理行号
-            physical_row = disp_row;
-        } else {
-            // 隔行模式：顶场（偶数行）和底场（奇数行）交织存储
-            // 显示行0 → 物理行0，显示行1 → 物理行height/2，
-            // 显示行2 → 物理行1，显示行3 → 物理行height/2 + 1...
-            int field = disp_row % 2;  // 0=顶场，1=底场
-            int field_row = disp_row / 2;  // 在本场内的行号
-            physical_row = (field == 0) ? field_row : (height / 2 + field_row);
-        }
-
-        // 确保物理行号不越界（处理奇数高度的情况）
-        if (physical_row >= height) {
-            continue;
-        }
-
-        // 指向当前物理行的起始地址
-        uint8_t *line_ptr = yuyv_data + physical_row * line_stride;
-
-        // 计算区域在当前行的起始和结束字节偏移
-        int start_byte = ltx * bytes_per_pixel;
-        int end_byte = rbx * bytes_per_pixel;
-
-        // 涂黑当前行的指定区域（处理YUYV格式）
-        for (int byte = start_byte; byte < end_byte; byte += 4) {
-            // 第一个像素的Y分量（涂黑）
-            if (byte < end_byte) {
-                line_ptr[byte] = 0x00;
-            }
-            // U分量（中性值）
-            if (byte + 1 < end_byte) {
-                line_ptr[byte + 1] = 0x80;
-            }
-            // 第二个像素的Y分量（涂黑）
-            if (byte + 2 < end_byte) {
-                line_ptr[byte + 2] = 0x00;
-            }
-            // V分量（中性值）
-            if (byte + 3 < end_byte) {
-                line_ptr[byte + 3] = 0x80;
-            }
-        }
-    }
-	return;
-}
-
-static void yuyv_blacken_all_region(uint8_t *yuyv_data, int width, int height, int interlace)
-{
-	if (ipc_config.occlusion_num == 0)
-		return;
-	
-	for (int i = 0; i < ipc_config.occlusion_num; i++) {
-		yuyv_blacken_region(yuyv_data, width, height, ipc_config.occlusion_coordinate[i].ltx,
-													ipc_config.occlusion_coordinate[i].lty,
-													ipc_config.occlusion_coordinate[i].rbx,
-													ipc_config.occlusion_coordinate[i].rby,
-													interlace);
-	}
-	return;
-}
 int fd;
 unsigned char *datas[COUNT];            // 缓冲区数据地址
 struct v4l2_buffer buff;
@@ -437,9 +363,9 @@ int main(int argc, char **argv)
 {	
     //datebase_init();
     init_ipc_config();
-    // if (init_stb_truetype(FONT_FILE_PATH, 24) != 0) {
-	// 	printf("init_stb_truetype failed\n");
-    // }
+    if (init_stb_truetype(FONT_FILE_PATH, 24) != 0) {
+	 	printf("init_stb_truetype failed\n");
+    }
     parse_args(argc, argv);
     // 注册信号处理函数
     signal(SIGINT, sigint_handler);

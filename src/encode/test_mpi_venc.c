@@ -38,6 +38,7 @@
 #include "rtsp_server_handle.h"
 #include "uart.h"
 #include "ws_live.h"
+#include "ipc.h"
 
 #define MAX_TIME_OUT_MS          20
 #define TEST_RC_MODE             0
@@ -589,6 +590,104 @@ static int is_need_venc_send_frame(void)
         return 1;
     }
 }
+
+static void yuyv_blacken_region(uint8_t *yuyv_data, int width, int height,
+                        int ltx, int lty, int rbx, int rby,
+                        int interlace, int is_yuyv) 
+{
+    const int bytes_per_pixel = 2;  // YUYV每像素平均2字节
+    const int line_stride = width * bytes_per_pixel;  // 每行字节数
+
+    // 遍历区域内按显示顺序的所有行（y到y+region_height-1）
+    for (int disp_row = lty; disp_row < rby; disp_row++) {
+        int physical_row;  // 行在内存中的实际存储位置
+
+        // 根据扫描模式计算物理行号
+        if (interlace == 0) {
+            // 逐行模式：显示行号 = 物理行号
+            physical_row = disp_row;
+        } else {
+            // 隔行模式：顶场（偶数行）和底场（奇数行）交织存储
+            // 显示行0 → 物理行0，显示行1 → 物理行height/2，
+            // 显示行2 → 物理行1，显示行3 → 物理行height/2 + 1...
+            int field = disp_row % 2;  // 0=顶场，1=底场
+            int field_row = disp_row / 2;  // 在本场内的行号
+            physical_row = (field == 0) ? field_row : (height / 2 + field_row);
+        }
+
+        // 确保物理行号不越界（处理奇数高度的情况）
+        if (physical_row >= height) {
+            continue;
+        }
+
+        // 指向当前物理行的起始地址
+        uint8_t *line_ptr = yuyv_data + physical_row * line_stride;
+
+        // 计算区域在当前行的起始和结束字节偏移
+        int start_byte = ltx * bytes_per_pixel;
+        int end_byte = rbx * bytes_per_pixel;
+
+        // 涂黑当前行的指定区域（处理YUYV格式）
+        for (int byte = start_byte; byte < end_byte; byte += 4) {
+            if (is_yuyv) {
+                // 第一个像素的Y分量（涂黑）
+                if (byte < end_byte) {
+                    line_ptr[byte] = 0x00;
+                }
+                // U分量（中性值）
+                if (byte + 1 < end_byte) {
+                    line_ptr[byte + 1] = 0x80;
+                }
+                // 第二个像素的Y分量（涂黑）
+                if (byte + 2 < end_byte) {
+                    line_ptr[byte + 2] = 0x00;
+                }
+                // V分量（中性值）
+                if (byte + 3 < end_byte) {
+                    line_ptr[byte + 3] = 0x80;
+                }                
+            } else {
+                // U分量（中性值）
+                if (byte < end_byte) {
+                    line_ptr[byte] = 0x80;
+                }
+                // 第一个像素的Y分量（涂黑）
+                if (byte + 1 < end_byte) {
+                    line_ptr[byte + 1] = 0x00;
+                }
+                // V分量（中性值）
+                if (byte + 2 < end_byte) {
+                    line_ptr[byte + 2] = 0x80;
+                } 
+                // 第二个像素的Y分量（涂黑）
+                if (byte + 3 < end_byte) {
+                    line_ptr[byte + 3] = 0x00;
+                }
+            }
+
+        }
+    }
+	return;
+}
+extern struct ipc_config ipc_config;
+static void yuyv_blacken_all_region(uint8_t *yuyv_data, int width, int height, int interlace, int is_yuyv)
+{
+	if (ipc_config.occlusion_num == 0)
+		return;
+	
+	for (int i = 0; i < ipc_config.occlusion_num; i++) {
+		yuyv_blacken_region(yuyv_data, width, height, ipc_config.occlusion_coordinate[i].ltx,
+													ipc_config.occlusion_coordinate[i].lty,
+													ipc_config.occlusion_coordinate[i].rbx,
+													ipc_config.occlusion_coordinate[i].rby,
+													interlace, is_yuyv);
+	}
+	return;
+}
+
+extern int overlay_text_on_yuyv(uint8_t *yuyv_data, int width, int height, 
+                         const char *text, int x, int y,
+                         uint8_t *yuv_color, int interlace, int is_yuyv);
 void* venc_send_frame(void *pArgs) {
     TEST_VENC_CTX_S     *pstCtx        = (TEST_VENC_CTX_S *)(pArgs);
     RK_S32               s32Ret         = RK_SUCCESS;
@@ -716,17 +815,17 @@ void* venc_send_frame(void *pArgs) {
             perror("ioctl VIDIOC_DQBUF");
             break;
         }
-        //yuyv_blacken_all_region(datas[buff.index], WIDTH, HEIGHT, interlaced);
+        yuyv_blacken_all_region(datas[buff.index], 720, 576, interlaced, 0);
         //motion_detection(datas[buff.index], WIDTH, HEIGHT, interlaced);
-        // if (ipc_config.osd_state) {
-        //     unsigned char color[3] = {255, 128, 128};
-        //     char date[32];
-        //     get_date(date, 1);
-        //     overlay_text_on_yuyv(datas[buff.index], WIDTH, HEIGHT, date, 540, 25, color, interlaced);
-        //     if (ipc_config.osd_text[0] != 0) {
-        //         overlay_text_on_yuyv(datas[buff.index], WIDTH, HEIGHT, ipc_config.osd_text, 10, 550, color, interlaced);
-        //     }
-	    // }
+        if (ipc_config.osd_state) {
+            unsigned char color[3] = {255, 128, 128};
+            char date[32];
+            get_date(date, 1);
+            overlay_text_on_yuyv(datas[buff.index], 720, 576, date, 540, 25, color, interlaced, 0);
+            if (ipc_config.osd_text[0] != 0) {
+                overlay_text_on_yuyv(datas[buff.index], 720, 576, ipc_config.osd_text, 10, 550, color, interlaced, 0);
+            }
+	    }
         //extract_nv12_from_yuyv(datas[buff.index], interlaced, pVirAddr);
         memcpy(pVirAddr, datas[buff.index], buff.m.planes[0].bytesused);
         //memcpy(pVirAddr, datas[buff.index], buff.bytesused);

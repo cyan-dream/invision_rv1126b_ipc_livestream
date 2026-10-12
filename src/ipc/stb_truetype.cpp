@@ -121,7 +121,7 @@ void cleanup_stb_truetype(void) {
  */
 int overlay_text_on_yuyv(uint8_t *yuyv_data, int width, int height, 
                          const char *text, int x, int y,
-                         uint8_t *yuv_color, int interlace) {
+                         uint8_t *yuv_color, int interlace, int is_yuyv) {
     if (!font_initialized || !font_data) {
         fprintf(stderr, "stb_truetype未初始化，请先调用init_stb_truetype\n");
         return -1;
@@ -219,15 +219,27 @@ int overlay_text_on_yuyv(uint8_t *yuyv_data, int width, int height,
                 int img_y = y_pos + row;
 
                 if (img_x < 0 || img_x >= width || img_y < 0 || img_y >= height) continue;
-
-                int yuyv_index = img_y * width * 2 + img_x * 2;
-                if (interlace) {
-                    if (img_y % 2 == 0) {
-                        yuyv_index = img_y/2*width*2 + img_x * 2; 
-                    } else {
-                        yuyv_index = height/2 * width * 2 + img_y/2*width*2 + img_x * 2; 
+                int yuyv_index;
+                if (is_yuyv) {
+                    yuyv_index = img_y * width * 2 + img_x * 2;
+                    if (interlace) {
+                        if (img_y % 2 == 0) {
+                            yuyv_index = img_y/2*width*2 + img_x * 2; 
+                        } else {
+                            yuyv_index = height/2 * width * 2 + img_y/2*width*2 + img_x * 2; 
+                        } 
                     } 
-                } 
+                } else {
+                    yuyv_index = img_y * width * 2 + img_x * 2 + 1;
+                    if (interlace) {
+                        if (img_y % 2 == 0) {
+                            yuyv_index = img_y/2*width*2 + img_x * 2 + 1; 
+                        } else {
+                            yuyv_index = height/2 * width * 2 + img_y/2*width*2 + img_x * 2 + 1; 
+                        } 
+                    }                    
+                }
+
                 unsigned char alpha = bitmap[row * w + col];
                 if (alpha == 0) continue;
 
@@ -246,6 +258,7 @@ int overlay_text_on_yuyv(uint8_t *yuyv_data, int width, int height,
 
     return 0;
 }
+
 #ifdef __cplusplus
 }
 #endif 
@@ -288,9 +301,9 @@ int __main() {
     }
     
     // 叠加文本
-    overlay_text_on_yuyv(yuyv_image, width, height, "Hello, World!", 50, 50, blue, 0);
-    overlay_text_on_yuyv(yuyv_image, width, height, "中文测试：stb版", 50, 100, red, 0);
-    overlay_text_on_yuyv(yuyv_image, width, height, "轻量级字体渲染", 50, 150, green, 0);
+    overlay_text_on_yuyv(yuyv_image, width, height, "Hello, World!", 50, 50, blue, 0, 1);
+    overlay_text_on_yuyv(yuyv_image, width, height, "中文测试：stb版", 50, 100, red, 0, 1);
+    overlay_text_on_yuyv(yuyv_image, width, height, "轻量级字体渲染", 50, 150, green, 0, 1);
     
     // 保存图像
     FILE *fp = fopen("output_stb.yuv", "wb");
