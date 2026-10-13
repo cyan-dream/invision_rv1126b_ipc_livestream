@@ -408,12 +408,12 @@ void uart_cmd_process(unsigned char *data)
 						//check_video_dir();
 						//start_rec();
                         create_dir(VID_FILE_PATH);
-                        is_record = 1;
+                        is_record = RECORD_START;
 						uart_notify(COM, REC_START_ACK);
 					break;
 					case REC_STOP_REQ:
 						//stop_rec();
-                        is_record = 0;
+                        is_record = RECORD_FINISHING;
 						uart_notify(COM, REC_STOP_ACK);
 					break;
 					case UPGRADE_REQ:

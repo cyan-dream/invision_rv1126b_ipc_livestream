@@ -45,6 +45,8 @@
 #define TEST_CROP_PARAM_CHANGE   0
 #define COMBO_START_CHN 4
 
+extern struct ipc_config ipc_config;
+
 struct combo_th {
     pthread_t th;
     RK_BOOL run;
@@ -516,7 +518,7 @@ void* venc_get_stream(void *pArgs) {
             } 
 */
             pData = RK_MPI_MB_Handle2VirAddr(stFrame.pstPack->pMbBlk);
-            if (is_record == 1) {
+            if (is_record == RECORD_START) {
                 int type = get_nalu_type(pData, stFrame.pstPack->u32Len);
                 extern int is_h265;
                 if ((type == 32 && is_h265) || (type == 7 && !is_h265)) {
@@ -524,22 +526,28 @@ void* venc_get_stream(void *pArgs) {
                     fp = fopen(filename, "wb");
                     if (fp) {
                         fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
-                        is_record = 2;
+                        is_record = RECORD_WORKING;
                     } else {
                         RK_LOGE("open video file error");
-                        is_record = 0;
+                        is_record = RECORD_IDLE;
                     }
                 } 
-            } else if (is_record == 2) {
+            } else if (is_record == RECORD_WORKING) {
                 fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
-            } else if ((is_record == 0) && fp) {
-                fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
-                //fflush(fp);
-                fclose(fp);
-                fp = RK_NULL;
-			    pthread_t id;
-			    pthread_create(&id, NULL, video_to_mp4_thread, (void*)filename);
-            }
+            } else if (is_record == RECORD_FINISHING) {
+                if (fp) {
+                    fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
+                    //fflush(fp);
+                    fclose(fp);
+                    fp = RK_NULL;
+                    pthread_t id;
+                    pthread_create(&id, NULL, video_to_mp4_thread, (void*)filename);
+                    is_record = RECORD_IDLE;      
+                } else {
+                    is_record = RECORD_IDLE;
+                }
+
+            } 
 
 
             int used_size = 0;
@@ -711,7 +719,7 @@ static void yuyv_blacken_region(uint8_t *yuyv_data, int width, int height,
     }
 	return;
 }
-extern struct ipc_config ipc_config;
+
 static void yuyv_blacken_all_region(uint8_t *yuyv_data, int width, int height, int interlace, int is_yuyv)
 {
 	if (ipc_config.occlusion_num == 0)

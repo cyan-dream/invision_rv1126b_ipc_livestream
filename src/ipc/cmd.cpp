@@ -428,12 +428,12 @@ void* socketThread(void* arg)
                 //check_video_dir();
 				//start_rec();
                 create_dir(VID_FILE_PATH);
-                is_record = 1;
+                is_record = RECORD_START;
 				uart_notify(COM, REC_START_ACK);
                 send(socket_fd, ucRecvBuf, 10 + ucRecvBuf[5], 0);
             } else if (ucRecvBuf[3] == 0x7c && ucRecvBuf[9] == 0x0d) {
                 //stop_rec();
-                is_record = 0;
+                is_record = RECORD_FINISHING;
 				uart_notify(COM, REC_STOP_ACK);
                 send(socket_fd, ucRecvBuf, 10 + ucRecvBuf[5], 0);
             } else if (ucRecvBuf[3] < 0xE0) {

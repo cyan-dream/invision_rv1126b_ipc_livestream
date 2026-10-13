@@ -18,6 +18,7 @@
 #include "ingenic_uart.h"
 #include "kv_sqlite3.h"
 #include "rtsp_server_handle.h"
+#include "uart.h"
 
 #define   WIDTH   720                     // 图片的宽度
 #define   HEIGHT  576                       // 图片的高度
@@ -51,7 +52,7 @@ void sigint_handler(int signo) {
 extern int is_record;
 static void sigtimer_handler(int signum) {
     //printf("定时器触发！\n");
-	is_record = 0;
+	is_record = RECORD_FINISHING;
    	return;
 }
 

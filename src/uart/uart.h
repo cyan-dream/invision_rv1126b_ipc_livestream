@@ -46,6 +46,13 @@ enum update_stat {
 	UPDATE_STAT_FINISH
 };
 
+enum {
+    RECORD_IDLE = 0,
+    RECORD_START,
+    RECORD_WORKING,
+    RECORD_FINISHING
+};
+
 struct update_info {
 	int update_ack;
 	int update_step;
