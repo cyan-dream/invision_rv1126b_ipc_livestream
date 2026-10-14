@@ -7,6 +7,7 @@ option(DEVICE_LIVE "Enable device live support" OFF)
 set(TOOLCHAIN_ROOT "/home/zmq/rv1126b/rockchip/1.2.1/1126B_Linux/buildroot/output/rockchip_invision_ipc/host/bin")
 set(CMAKE_C_COMPILER ${TOOLCHAIN_ROOT}/aarch64-buildroot-linux-gnu-gcc)
 set(CMAKE_CXX_COMPILER ${TOOLCHAIN_ROOT}/aarch64-buildroot-linux-gnu-g++)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories(./src/rtsp)
 include_directories(./src/rtsp/rtp)

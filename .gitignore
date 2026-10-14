@@ -5,3 +5,5 @@ livestream-simple-rtsp-server
 README.md
 README_CN.md
 example/
+compile_commands.json
+.cache/
