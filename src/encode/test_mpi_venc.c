@@ -155,7 +155,7 @@ static RK_S32 create_ivs(TEST_VENC_CTX_S *ctx) {
     attr.u32MDSensibility = 1;
     attr.bODEnable = RK_TRUE;
     attr.s32ODInterval = 1;
-    attr.s32ODPercent = 7;
+    attr.s32ODPercent = 5;
     return RK_MPI_IVS_CreateChn(ctx->s32IvsChn, &attr);
 }
 
@@ -165,11 +165,11 @@ static RK_S32 destroy_ivs(TEST_VENC_CTX_S *ctx) {
 }
 
 static void set_pic_vid_filename(char *pic_vid_filename, int is_pic)
-{ 
+{
     time_t now;
     struct tm *local_time;
     time(&now);
-    local_time = localtime(&now); 
+    local_time = localtime(&now);
     if (is_pic) {
         static time_t last_pic_sec = 0;
         static int pic_seq = 0;
@@ -201,7 +201,7 @@ static void set_pic_vid_filename(char *pic_vid_filename, int is_pic)
                 local_time->tm_year + 1900, local_time->tm_mon + 1, local_time->tm_mday,
                 local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
         }
-	
+
     }
 
     return;
@@ -421,7 +421,7 @@ static int get_nalu_type(uint8_t *buff, int buffer_size)
 {
 	if (buffer_size < 4)
 		return -1;
-    extern int is_h265;    
+    extern int is_h265;
     if (is_h265) {
         if (buff[0] == 0x00 && buff[1] == 0x00 && buff[2] == 0x01) {
 	        return (buff[3] & 0x7e)>>1;
@@ -438,12 +438,12 @@ static int get_nalu_type(uint8_t *buff, int buffer_size)
         } else {
             return -1;
         }
-    }   
+    }
 
 }
 
 void *video_to_mp4_thread(void *arg)
-{   
+{
 	int len = strlen((char *)arg);
     if (len < 5 || len > 63) {
         printf("video_file name error\n");
@@ -510,12 +510,12 @@ void* venc_get_stream(void *pArgs) {
         if (s32Ret >= 0) {
             s32StreamCnt++;
             //RK_LOGI("get chn %d stream %d", u32Ch, s32StreamCnt);
-/*             
+/*
             if (pstCtx->dstFilePath != RK_NULL) {
                 pData = RK_MPI_MB_Handle2VirAddr(stFrame.pstPack->pMbBlk);
                 fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
                 fflush(fp);
-            } 
+            }
 */
             pData = RK_MPI_MB_Handle2VirAddr(stFrame.pstPack->pMbBlk);
             if (is_record == RECORD_START) {
@@ -531,7 +531,7 @@ void* venc_get_stream(void *pArgs) {
                         RK_LOGE("open video file error");
                         is_record = RECORD_IDLE;
                     }
-                } 
+                }
             } else if (is_record == RECORD_WORKING) {
                 fwrite(pData, 1, stFrame.pstPack->u32Len, fp);
             } else if (is_record == RECORD_FINISHING) {
@@ -542,12 +542,12 @@ void* venc_get_stream(void *pArgs) {
                     fp = RK_NULL;
                     pthread_t id;
                     pthread_create(&id, NULL, video_to_mp4_thread, (void*)filename);
-                    is_record = RECORD_IDLE;      
+                    is_record = RECORD_IDLE;
                 } else {
                     is_record = RECORD_IDLE;
                 }
 
-            } 
+            }
 
 
             int used_size = 0;
@@ -557,7 +557,7 @@ void* venc_get_stream(void *pArgs) {
                 ret = sessionSendVideoData(contexts[0], pData+used_size+4, nalu_size-4);
                 if(ret < 0){
                     printf("sessionSendVideoData error\n");
-                }  
+                }
                 int nal_type = get_nalu_type(pData+used_size, nalu_size);
 
                 ws_live_push(g_ws_svr, pData+used_size, nalu_size, nal_type);
@@ -643,7 +643,7 @@ static int is_need_venc_send_frame(void)
 
 static void yuyv_blacken_region(uint8_t *yuyv_data, int width, int height,
                         int ltx, int lty, int rbx, int rby,
-                        int interlace, int is_yuyv) 
+                        int interlace, int is_yuyv)
 {
     const int bytes_per_pixel = 2;  // YUYV每像素平均2字节
     const int line_stride = width * bytes_per_pixel;  // 每行字节数
@@ -695,7 +695,7 @@ static void yuyv_blacken_region(uint8_t *yuyv_data, int width, int height,
                 // V分量（中性值）
                 if (byte + 3 < end_byte) {
                     line_ptr[byte + 3] = 0x80;
-                }                
+                }
             } else {
                 // U分量（中性值）
                 if (byte < end_byte) {
@@ -708,7 +708,7 @@ static void yuyv_blacken_region(uint8_t *yuyv_data, int width, int height,
                 // V分量（中性值）
                 if (byte + 2 < end_byte) {
                     line_ptr[byte + 2] = 0x80;
-                } 
+                }
                 // 第二个像素的Y分量（涂黑）
                 if (byte + 3 < end_byte) {
                     line_ptr[byte + 3] = 0x00;
@@ -724,7 +724,7 @@ static void yuyv_blacken_all_region(uint8_t *yuyv_data, int width, int height, i
 {
 	if (ipc_config.occlusion_num == 0)
 		return;
-	
+
 	for (int i = 0; i < ipc_config.occlusion_num; i++) {
 		yuyv_blacken_region(yuyv_data, width, height, ipc_config.occlusion_coordinate[i].ltx,
 													ipc_config.occlusion_coordinate[i].lty,
@@ -735,7 +735,7 @@ static void yuyv_blacken_all_region(uint8_t *yuyv_data, int width, int height, i
 	return;
 }
 
-extern int overlay_text_on_yuyv(uint8_t *yuyv_data, int width, int height, 
+extern int overlay_text_on_yuyv(uint8_t *yuyv_data, int width, int height,
                          const char *text, int x, int y,
                          uint8_t *yuv_color, int interlace, int is_yuyv);
 void* venc_send_frame(void *pArgs) {
@@ -803,7 +803,7 @@ void* venc_send_frame(void *pArgs) {
             usleep(33000);
             continue;
         }
-        
+
         blk = RK_MPI_MB_GetMB(pool, pstCtx->u32BufferSize, RK_TRUE);
 
         if (RK_NULL == blk) {
@@ -842,7 +842,7 @@ void* venc_send_frame(void *pArgs) {
                 return RK_NULL;
             }
         }
-  
+
         if (s32Ret != RK_SUCCESS) {
             s32ReachEOS = 1;
             if (s32LoopCount > 0) {
@@ -961,10 +961,11 @@ __RETRY:
                         int x = RK_ALIGN(pstCtx->u32SrcWidth / 8 / 8, 4) / 4;
                         int y = RK_ALIGN(pstCtx->u32SrcHeight / 8, 4) / 4;
                         int bit = pstCtx->u32SrcWidth / 8 / 4;
-                        printf("MD u32Square: %u\n", stResults.pstResults->stMdInfo.u32Square);
+                        if(stResults.pstResults->stMdInfo.u32Square) printf("MD u32Square: %u\n", stResults.pstResults->stMdInfo.u32Square);
                         if (stResults.pstResults->stMdInfo.pData &&
                             stResults.pstResults->stMdInfo.u32Square >
                             pstCtx->u32SrcWidth * pstCtx->u32SrcHeight * pstCtx->s32SquarePct / 100) {
+                            /*
                             for (int n = 0; n < x * 8; n++)
                                 fprintf(pstCtx->fp_ivs_result, "-");
                             fprintf(pstCtx->fp_ivs_result, "\n");
@@ -986,6 +987,7 @@ __RETRY:
                             for (int n = 0; n < x * 8; n++)
                                 fprintf(pstCtx->fp_ivs_result, "-");
                             fprintf(pstCtx->fp_ivs_result, "\n");
+                            */
                             printf("MD u32RectNum: %u\n", stResults.pstResults->stMdInfo.u32RectNum);
                             for (int i = 0; i < stResults.pstResults->stMdInfo.u32RectNum; i++) {
                                 printf("%d: [%d, %d, %d, %d]\n", i,
@@ -995,8 +997,9 @@ __RETRY:
                                        stResults.pstResults->stMdInfo.stRect[i].u32Height);
                             }
                         }
-                        fprintf(pstCtx->fp_ivs_result, "od flag: %d\n", stResults.pstResults->stOdInfo.u32Flag);
-                        fsync(fileno(pstCtx->fp_ivs_result));
+                        //fprintf(pstCtx->fp_ivs_result, "od flag: %d\n", stResults.pstResults->stOdInfo.u32Flag);
+                        //fsync(fileno(pstCtx->fp_ivs_result));
+                        if (stResults.pstResults->stOdInfo.u32Flag) printf("od flag: 1\n");
                     }
                     RK_MPI_IVS_ReleaseResults(pstCtx->s32IvsChn, &stResults);
                 } else {
@@ -1090,13 +1093,13 @@ RK_S32 unit_test_mpi_venc(TEST_VENC_CTX_S *ctx) {
             RK_LOGE("ivs set mdattr failed:%x", s32Ret);
             return RK_FAILURE;
         }
-        char name[128];
-        snprintf(name, sizeof(name), "/tmp/ivs%d_result.txt", ctx->s32IvsChn);
-        ctx->fp_ivs_result = fopen(name, "wb");
-        if (!ctx->fp_ivs_result) {
-            RK_LOGE("open /data/ivs_result.txt failed");
-            return RK_FAILURE;
-        }
+        //char name[128];
+        // snprintf(name, sizeof(name), "/tmp/ivs%d_result.txt", ctx->s32IvsChn);
+        // ctx->fp_ivs_result = fopen(name, "wb");
+        // if (!ctx->fp_ivs_result) {
+        //     RK_LOGE("open /data/ivs_result.txt failed");
+        //     return RK_FAILURE;
+        // }
     }
 
     if (ctx->u32BufferSize <= 0) {
@@ -1155,12 +1158,12 @@ RK_S32 unit_test_mpi_venc(TEST_VENC_CTX_S *ctx) {
         if (stAttr.stVencAttr.enType == RK_VIDEO_ID_AVC) {
             stAttr.stVencAttr.u32Profile = H264E_PROFILE_HIGH;
             stAttr.stRcAttr.stH264Cbr.u32Gop = ctx->u32GopSize;
-            stAttr.stRcAttr.stH264Cbr.u32BitRate = ctx->u32BitRateKb;            
+            stAttr.stRcAttr.stH264Cbr.u32BitRate = ctx->u32BitRateKb;
         } else if (stAttr.stVencAttr.enType == RK_VIDEO_ID_HEVC) {
             stAttr.stVencAttr.u32Profile = H265E_PROFILE_MAIN;
             stAttr.stRcAttr.stH265Cbr.u32Gop = ctx->u32GopSize;
-            stAttr.stRcAttr.stH265Cbr.u32BitRate = ctx->u32BitRateKb; 
-        }  
+            stAttr.stRcAttr.stH265Cbr.u32BitRate = ctx->u32BitRateKb;
+        }
         TEST_VENC_SET_BitRate(&stAttr.stRcAttr, ctx->u32BitRateKb, ctx->u32BitRateKbMax, ctx->u32BitRateKbMin);
         TEST_VENC_SET_FixQp(&stAttr.stRcAttr, ctx->u32FixQp, ctx->u32FixQp + 2, ctx->u32FixQp);
         TEST_VENC_SET_StatTime(&stAttr.stRcAttr, ctx->u32StatTime);
@@ -1620,6 +1623,7 @@ int rk_mpi_venc_test(void) {
     ctx.u32SrcHeight = 576;
 
     ctx.bCombo = 1;
+    ctx.bIvs = ipc_config.motion_detection;
 
     extern int is_h265;
     if(is_h265) {
